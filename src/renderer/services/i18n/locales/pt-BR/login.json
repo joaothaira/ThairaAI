@@ -1,0 +1,26 @@
+{
+  "pageTitle": "ThairaAI - Entrar",
+  "brand": "ThairaAI",
+  "subtitle": "Bem-vindo de volta, entre em sua conta",
+  "username": "Usuário",
+  "usernamePlaceholder": "Digite seu usuário",
+  "password": "Senha",
+  "passwordPlaceholder": "Digite sua senha",
+  "rememberMe": "Lembrar de mim",
+  "submit": "Entrar",
+  "submitting": "Entrando...",
+  "success": "Login realizado! Redirecionando...",
+  "showPassword": "Mostrar senha",
+  "hidePassword": "Ocultar senha",
+  "languageToggle": "Alterar idioma",
+  "footerPrimary": "Transforme sua IA de linha de comando",
+  "footerSecondary": "Moderno e Eficiente",
+  "errors": {
+    "empty": "Digite o usuário e a senha",
+    "invalidCredentials": "Usuário ou senha inválidos",
+    "tooManyAttempts": "Muitas tentativas, tente novamente mais tarde",
+    "networkError": "Falha na conexão, tente novamente",
+    "serverError": "Erro no servidor, tente novamente mais tarde",
+    "unknown": "Falha no login, tente novamente"
+  }
+}
