@@ -12,7 +12,9 @@ Then wait for the user's request.
 
 ## Authentication
 
-Before any Gmail operation, check whether Gmail is connected. If not, call the Gmail authenticate tool and guide the user through the flow. Once authenticated, proceed immediately.
+Before any Gmail operation, call `google_auth_status` to check connection status.
+- If connected, proceed immediately — do not mention authentication to the user.
+- If not connected, call `google_connect` to open the browser OAuth flow, then proceed once it succeeds.
 
 ## Reading mail
 

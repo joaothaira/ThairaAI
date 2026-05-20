@@ -1,6 +1,7 @@
 # Newsletter Pipeline × AionUi — Integration Notes
 
 ## Goal
+
 Wrap the `/Volumes/server-ssd/newsletter` Claude Code pipeline in AionUi so non-technical users can run it via GUI, and optionally use local Ollama models instead of the Anthropic API.
 
 ---
@@ -10,6 +11,7 @@ Wrap the `/Volumes/server-ssd/newsletter` Claude Code pipeline in AionUi so non-
 ### 1. Two extensions installed at `~/.aionui/extensions/`
 
 #### `ollama/` — Local model provider
+
 Registers all locally-installed Ollama models as a `custom` platform provider at `http://localhost:11434`.
 
 ```
@@ -23,6 +25,7 @@ Key config: `platform: "custom"`, `baseUrl: "http://localhost:11434"`.
 No API key required. After AionUi restart, models appear in Settings → Models.
 
 #### `newsletter-pipeline/` — The 3 newsletter assistants
+
 Ports the existing Claude Code subagents to AionUi assistant format.
 
 ```
@@ -37,6 +40,7 @@ Ports the existing Claude Code subagents to AionUi assistant format.
 ```
 
 Assistants defined:
+
 - `newsletter-writer` — reads research.md, outputs newsletter.md
 - `newsletter-researcher` — searches AI news + GitHub trending
 - `newsletter-social` — adapts newsletter to 5 social files
@@ -52,12 +56,14 @@ Ran `gemma4:e4b` (9.6 GB, local) against the real `editions/2026-05-18/research.
 **Result: 7.5/10 — good enough for demo, not quite shippable without edits.**
 
 What worked:
+
 - Natural pt-br, correct tone, no translation artifacts
 - SCQA structure followed correctly
 - Good "👉 O que você pode fazer" CTAs
 - Subject line on-point: `Claude Opus 4.7 e o fim da IA vaga`
 
 What differed vs Claude:
+
 - Added emojis to section titles (minor, acceptable)
 - Slightly more verbose/flowery
 - "Dica da Semana" example prompt less precise
@@ -72,6 +78,7 @@ Raw output saved at `/tmp/ollama_newsletter_test.json` (may be cleared on reboot
 Extensions live in `~/.aionui/extensions/<name>/` and are auto-scanned on startup.
 
 **Manifest** (`aion-extension.json`):
+
 ```json
 {
   "name": "unique-id",
@@ -79,7 +86,7 @@ Extensions live in `~/.aionui/extensions/<name>/` and are auto-scanned on startu
   "version": "1.0.0",
   "engine": { "aionui": "^1.0.0" },
   "permissions": {
-    "filesystem": "extension-only"   // MUST be: extension-only | workspace | full
+    "filesystem": "extension-only" // MUST be: extension-only | workspace | full
   },
   "contributes": {
     "assistants": "$file:contributes/assistants.json",
@@ -89,17 +96,21 @@ Extensions live in `~/.aionui/extensions/<name>/` and are auto-scanned on startu
 ```
 
 **Assistant definition** (`contributes/assistants.json`):
+
 ```json
-[{
-  "id": "my-assistant",
-  "name": "Display Name",
-  "description": "...",
-  "presetAgentType": "claude",       // execution engine: claude | gemini | codex | etc.
-  "contextFile": "assistants/my-context.md"
-}]
+[
+  {
+    "id": "my-assistant",
+    "name": "Display Name",
+    "description": "...",
+    "presetAgentType": "claude", // execution engine: claude | gemini | codex | etc.
+    "contextFile": "assistants/my-context.md"
+  }
+]
 ```
 
 **Model provider** (`contributes/model-providers.json`):
+
 ```json
 [{
   "id": "ollama-local",
@@ -111,6 +122,7 @@ Extensions live in `~/.aionui/extensions/<name>/` and are auto-scanned on startu
 ```
 
 Key source files in this repo:
+
 - `src/process/extensions/types.ts` — full Zod schemas for all contribution types
 - `src/process/extensions/ExtensionLoader.ts` — scans `~/.aionui/extensions/`
 - `src/process/extensions/constants.ts` — path resolution logic
@@ -142,6 +154,7 @@ Key source files in this repo:
 ---
 
 ## Original newsletter pipeline (for reference)
+
 Source: `/Volumes/server-ssd/newsletter/`  
 Agent definitions: `/Volumes/server-ssd/newsletter/.claude/agents/`  
 Editions: `/Volumes/server-ssd/newsletter/editions/YYYY-MM-DD/`

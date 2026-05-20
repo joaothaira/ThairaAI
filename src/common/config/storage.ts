@@ -200,6 +200,11 @@ export interface IConfigStorageRefer {
   'ambient.enabled'?: boolean;
   // Ambient Mode: persisted bubble window position (displayId used for multi-monitor recovery)
   'ambient.bubblePosition'?: { x: number; y: number; displayId: number };
+  // Google Integration: OAuth credentials for Gmail + Calendar
+  'google.integration'?: {
+    clientId?: string;
+    clientSecret?: string;
+  };
 }
 
 export interface IEnvStorageRefer {

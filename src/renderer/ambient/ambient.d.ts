@@ -6,7 +6,6 @@
 
 // Required so that this file is treated as a module; otherwise `declare global` errors.
 
-
 declare global {
   interface Window {
     ambientAPI: {

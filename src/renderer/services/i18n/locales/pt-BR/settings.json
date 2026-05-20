@@ -197,7 +197,7 @@
   "deleteInvalidKeys": "Excluir Chaves Inválidas",
   "testAllKeys": "Testar Todas as Chaves",
   "addModelPlaceholder": "Selecionar ou digitar ID do modelo",
-  "customModelSupportNote": "Nota: Aion CLI e Gemini CLI Agent atualmente suportam modelos personalizados.",
+  "customModelSupportNote": "Nota: Thaira CLI e Gemini CLI Agent atualmente suportam modelos personalizados.",
   "addModelHint": "Escolha ou digite um ID de modelo e ele será adicionado a este provedor.",
   "addModelSelectedHint": "Pronto para adicionar modelo: {{model}}",
   "currentModelsLabel": "Modelos Atuais",
@@ -904,6 +904,18 @@
     "notFound": "Não Encontrado",
     "version": "Versão",
     "path": "Caminho",
-    "providerNote": "As configurações de provedor e chave de API são gerenciadas na página Modelos. O Aion CLI suporta: Anthropic, OpenAI, AWS Bedrock."
+    "providerNote": "As configurações de provedor e chave de API são gerenciadas na página Modelos. O Thaira CLI suporta: Anthropic, OpenAI, AWS Bedrock."
+  },
+  "google": {
+    "siderLabel": "Google",
+    "title": "Gmail e Google Agenda",
+    "connectedAs": "Conectado como {{email}}",
+    "notConnected": "Não conectado",
+    "connect": "Entrar com Google",
+    "disconnect": "Desconectar",
+    "connectSuccess": "Conta Google conectada com sucesso",
+    "connectFailed": "Falha ao conectar conta Google",
+    "disconnectSuccess": "Conta Google desconectada",
+    "notConfigured": "A integração com Google não está configurada nesta versão."
   }
 }

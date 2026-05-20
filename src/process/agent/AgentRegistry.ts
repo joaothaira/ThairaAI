@@ -62,7 +62,7 @@ class AgentRegistry {
   private createAionrsAgent(): AionrsDetectedAgent {
     return {
       id: 'aionrs',
-      name: 'Aion CLI',
+      name: 'Thaira CLI',
       kind: 'aionrs',
       available: true,
       backend: 'aionrs',

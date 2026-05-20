@@ -406,6 +406,22 @@ export const gemini = {
   >('gemini.subscription-status'),
 };
 
+export const googleIntegration = {
+  status: bridge.buildProvider<IBridgeResponse<{ connected: boolean; email: string; hasCredentials: boolean }>, {}>(
+    'google.integration.status'
+  ),
+  connect: bridge.buildProvider<IBridgeResponse<{ email: string }>, {}>('google.integration.connect'),
+  disconnect: bridge.buildProvider<IBridgeResponse, {}>('google.integration.disconnect'),
+  listEmails: bridge.buildProvider<
+    IBridgeResponse<{ messages: import('@process/services/google/GoogleIntegrationService').GmailMessage[] }>,
+    { maxResults?: number }
+  >('google.integration.list-emails'),
+  listEvents: bridge.buildProvider<
+    IBridgeResponse<{ events: import('@process/services/google/GoogleIntegrationService').CalendarEvent[] }>,
+    { maxResults?: number }
+  >('google.integration.list-events'),
+};
+
 // AWS Bedrock 相关接口 / AWS Bedrock interfaces
 export const bedrock = {
   testConnection: bridge.buildProvider<

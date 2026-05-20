@@ -13,6 +13,14 @@ import { mkdirSync } from 'fs';
 import path from 'path';
 import { WebFetchTool } from './web-fetch';
 import { WebSearchTool } from './web-search';
+import {
+  GoogleAuthStatusTool,
+  GoogleConnectTool,
+  GoogleListEventsTool,
+  GoogleListEmailsTool,
+  GoogleCreateEventTool,
+  GoogleSendEmailTool,
+} from './google-integration';
 
 interface ConversationToolConfigOptions {
   proxy: string;
@@ -178,6 +186,15 @@ export class ConversationToolConfig {
         // 异常时也不影响其他工具的注册
       }
     }
+
+    // Register native Google integration tools (calendar + gmail)
+    const bus = config.getMessageBus();
+    toolRegistry.registerTool(new GoogleAuthStatusTool(bus));
+    toolRegistry.registerTool(new GoogleConnectTool(bus));
+    toolRegistry.registerTool(new GoogleListEventsTool(bus));
+    toolRegistry.registerTool(new GoogleCreateEventTool(bus));
+    toolRegistry.registerTool(new GoogleListEmailsTool(bus));
+    toolRegistry.registerTool(new GoogleSendEmailTool(bus));
 
     // 同步工具到模型客户端
     await geminiClient.setTools();

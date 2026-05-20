@@ -95,6 +95,12 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
   private heartbeatMissedCount = 0;
   private heartbeatActive = false;
 
+  // First-event timeout: kills the binary if no `start` event arrives after sending a message.
+  // Guards against model API hangs that occur before the binary emits any events
+  // (heartbeatActive is false in this window, so the normal heartbeat won't fire).
+  private firstEventTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly firstEventTimeoutMs = 120_000; // 2 minutes
+
   // Thinking state
   private thinkingMsgId: string | null = null;
   private thinkingStartTime: number | null = null;
@@ -242,6 +248,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     await this.agentReady;
     this._messageSentAt = Date.now();
     mainLog('[AionrsManager]', `message sent: msg_id=${data.msg_id}`);
+    this.startFirstEventTimer(data.msg_id);
     if (this.agent) {
       await this.agent.send(data.content, data.msg_id, data.files);
     }
@@ -456,6 +463,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
   }
 
   private handleProcessExit(code: number | null, activeMsgId: string): void {
+    this.clearFirstEventTimer();
     mainError('[AionrsManager]', `aionrs process exited unexpectedly (code=${code}) during active turn ${activeMsgId}`);
 
     this.status = 'finished';
@@ -494,6 +502,41 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     }
     this.heartbeatMissedCount = 0;
     this.heartbeatActive = false;
+  }
+
+  private startFirstEventTimer(msgId: string): void {
+    this.clearFirstEventTimer();
+    this.firstEventTimer = setTimeout(() => {
+      this.firstEventTimer = null;
+      mainError('[AionrsManager]', `no stream start after ${this.firstEventTimeoutMs}ms, killing (msg_id=${msgId})`);
+      this.agent?.kill();
+      const errorMessage: IResponseMessage = {
+        type: 'error',
+        conversation_id: this.conversation_id,
+        msg_id: msgId,
+        data: `Model API did not respond within ${this.firstEventTimeoutMs / 1000}s. The model may be unavailable or too slow. Please check your model configuration.`,
+      };
+      ipcBridge.conversation.responseStream.emit(errorMessage);
+      this.emitToEventBuses(errorMessage);
+      const finishMessage: IResponseMessage = {
+        type: 'finish',
+        conversation_id: this.conversation_id,
+        msg_id: uuid(),
+        data: null,
+      };
+      ipcBridge.conversation.responseStream.emit(finishMessage);
+      this.emitToEventBuses(finishMessage);
+      this._messageSentAt = null;
+      this.status = 'finished';
+      void this.handleTurnEnd();
+    }, this.firstEventTimeoutMs);
+  }
+
+  private clearFirstEventTimer(): void {
+    if (this.firstEventTimer) {
+      clearTimeout(this.firstEventTimer);
+      this.firstEventTimer = null;
+    }
   }
 
   private handlePong(): void {
@@ -554,6 +597,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
       }
 
       if (data.type === 'start') {
+        this.clearFirstEventTimer();
         const ttft = this._messageSentAt ? `${Date.now() - this._messageSentAt}ms` : 'n/a';
         mainLog('[AionrsManager]', `stream_start: msg_id=${data.msg_id}, TTFT=${ttft}`);
         this.status = 'running';
@@ -620,6 +664,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
 
       // On turn end, clear fallback timer, persist usage, and check for cron commands
       if (processedData.type === 'finish') {
+        this.clearFirstEventTimer();
         const total = this._messageSentAt ? `${Date.now() - this._messageSentAt}ms` : 'n/a';
         mainLog('[AionrsManager]', `stream_end: msg_id=${processedData.msg_id}, total=${total}`, processedData.data);
         this._messageSentAt = null;

@@ -89,7 +89,7 @@ export class McpService {
       ['aionui', new AionuiMcpAgent()], // ThairaAI 本地 @office-ai/aioncli-core
       ['codex', new CodexMcpAgent()],
       ['opencode', new OpencodeMcpAgent()],
-      ['aionrs', new AionrsMcpAgent()], // Aion CLI (Rust binary, TOML config)
+      ['aionrs', new AionrsMcpAgent()], // Thaira CLI (Rust binary, TOML config)
     ]);
   }
 

@@ -197,7 +197,7 @@
   "deleteInvalidKeys": "Delete Invalid Keys",
   "testAllKeys": "Test All Keys",
   "addModelPlaceholder": "Select or enter model ID",
-  "customModelSupportNote": "Note: Aion CLI and Gemini CLI Agent currently support custom models.",
+  "customModelSupportNote": "Note: Thaira CLI and Gemini CLI Agent currently support custom models.",
   "addModelHint": "Pick or type a model ID and it will be appended to this provider.",
   "addModelSelectedHint": "Ready to add model: {{model}}",
   "currentModelsLabel": "Current Models",
@@ -904,6 +904,18 @@
     "notFound": "Not Found",
     "version": "Version",
     "path": "Path",
-    "providerNote": "Provider and API key settings are managed in the Models page. Aion CLI supports: Anthropic, OpenAI, AWS Bedrock."
+    "providerNote": "Provider and API key settings are managed in the Models page. Thaira CLI supports: Anthropic, OpenAI, AWS Bedrock."
+  },
+  "google": {
+    "siderLabel": "Google",
+    "title": "Gmail & Google Calendar",
+    "connectedAs": "Connected as {{email}}",
+    "notConnected": "Not connected",
+    "connect": "Sign in with Google",
+    "disconnect": "Disconnect",
+    "connectSuccess": "Google account connected successfully",
+    "connectFailed": "Failed to connect Google account",
+    "disconnectSuccess": "Google account disconnected",
+    "notConfigured": "Google integration is not configured for this build."
   }
 }

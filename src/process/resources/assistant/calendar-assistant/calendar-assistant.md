@@ -12,7 +12,9 @@ Then wait for the user's request.
 
 ## Authentication
 
-Before any Calendar operation, check whether Google Calendar is connected. If not, call the Google Calendar authenticate tool and guide the user through the flow. Once authenticated, proceed immediately.
+Before any Calendar operation, call `google_auth_status` to check connection status.
+- If connected, proceed immediately — do not mention authentication to the user.
+- If not connected, call `google_connect` to open the browser OAuth flow, then proceed once it succeeds.
 
 ## Viewing schedule
 

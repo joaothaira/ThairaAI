@@ -37,6 +37,8 @@ import {
   BUILTIN_IMAGE_GEN_ID,
   BUILTIN_IMAGE_GEN_LEGACY_NAMES,
   BUILTIN_IMAGE_GEN_NAME,
+  BUILTIN_GOOGLE_INTEGRATION_ID,
+  BUILTIN_GOOGLE_INTEGRATION_NAME,
 } from '../resources/builtinMcp/constants';
 // Platform and architecture types (moved from deleted updateConfig)
 type PlatformType = 'win32' | 'darwin' | 'linux';
@@ -783,6 +785,73 @@ const ensureBuiltinMcpServers = async (): Promise<void> => {
       const { switch: _switch, ...rest } = oldConfig;
       await configFile.set('tools.imageGenerationModel', rest as typeof oldConfig);
     }
+
+    // ── Google Integration built-in MCP server ─────────────────────────────
+    const googleScriptPath = getBuiltinMcpScriptPath('builtin-mcp-google-integration');
+    const googleExistingIdx = mcpServers.findIndex((s) => s.builtin === true && s.id === BUILTIN_GOOGLE_INTEGRATION_ID);
+
+    const buildGoogleEnv = (): Record<string, string> => {
+      const env: Record<string, string> = {
+        AIONUI_USER_DATA_PATH: getPlatformServices().paths.getDataDir(),
+      };
+      if (process.env.GOOGLE_CLIENT_ID) env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+      if (process.env.GOOGLE_CLIENT_SECRET) env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+      return env;
+    };
+
+    if (googleExistingIdx >= 0) {
+      const existing = mcpServers[googleExistingIdx];
+      const needsPathUpdate =
+        existing.transport.type === 'stdio' &&
+        existing.transport.command === 'node' &&
+        (existing.transport.args || [])[0] !== googleScriptPath;
+
+      if (needsPathUpdate && existing.transport.type === 'stdio') {
+        mcpServers[googleExistingIdx] = {
+          ...existing,
+          transport: { ...existing.transport, args: [googleScriptPath], env: buildGoogleEnv() },
+          updatedAt: now,
+        };
+        changed = true;
+      } else if (existing.transport.type === 'stdio') {
+        // Always refresh env so updated credentials are picked up
+        const currentEnv = existing.transport.env ?? {};
+        const newEnv = buildGoogleEnv();
+        const envChanged = JSON.stringify(currentEnv) !== JSON.stringify(newEnv);
+        if (envChanged) {
+          mcpServers[googleExistingIdx] = {
+            ...existing,
+            transport: { ...existing.transport, env: newEnv },
+            updatedAt: now,
+          };
+          changed = true;
+        }
+      }
+    } else {
+      const googleEnv = buildGoogleEnv();
+      const googleServer: IMcpServer = {
+        id: BUILTIN_GOOGLE_INTEGRATION_ID,
+        name: BUILTIN_GOOGLE_INTEGRATION_NAME,
+        description: 'Built-in Google Calendar and Gmail integration.',
+        enabled: true,
+        builtin: true,
+        transport: {
+          type: 'stdio',
+          command: 'node',
+          args: [googleScriptPath],
+          env: googleEnv,
+        },
+        createdAt: now,
+        updatedAt: now,
+        originalJson: JSON.stringify(
+          { [BUILTIN_GOOGLE_INTEGRATION_NAME]: { command: 'node', args: [googleScriptPath], env: googleEnv } },
+          null,
+          2
+        ),
+      };
+      mcpServers.push(googleServer);
+      changed = true;
+    }
   } catch (error) {
     console.error('[ThairaAI] Failed to ensure built-in MCP servers:', error);
   }
@@ -1039,9 +1108,7 @@ const initStorage = async () => {
 
     // Prune stale preset entries whose IDs are no longer in ASSISTANT_PRESETS
     const validPresetIds = new Set(builtinAssistants.map((a: AcpBackendConfig) => a.id));
-    const prunedAgents = updatedAgents.filter(
-      (a: AcpBackendConfig) => !a.isPreset || validPresetIds.has(a.id)
-    );
+    const prunedAgents = updatedAgents.filter((a: AcpBackendConfig) => !a.isPreset || validPresetIds.has(a.id));
     if (prunedAgents.length !== updatedAgents.length) {
       updatedAgents.splice(0, updatedAgents.length, ...prunedAgents);
       hasChanges = true;

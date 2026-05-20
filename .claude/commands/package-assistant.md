@@ -162,20 +162,20 @@ Add a new entry to `ASSISTANT_PRESETS` array in `aionui/src/common/config/preset
 
 When packaging a new assistant, review existing officecli-based assistants to avoid description overlap:
 
-| ID                      | Skill                    | Focus                                                 |
-| ----------------------- | ------------------------ | ----------------------------------------------------- |
-| word-creator            | officecli-docx           | Word documents — reports, proposals, letters          |
-| ppt-creator             | officecli-pptx           | General PPT creation, editing, analysis               |
-| excel-creator           | officecli-xlsx           | Excel — financial models, trackers, formulas          |
-| morph-ppt               | morph-ppt                | Morph-animated presentations with visual styles       |
-| morph-ppt-3d            | morph-ppt-3d             | 3D GLB model → cinematic Morph presentation           |
-| word-form-creator       | officecli-word-form      | Fillable Word forms with content controls             |
-| pitch-deck-creator      | officecli-pitch-deck     | Investor decks, product launches, enterprise sales    |
-| dashboard-creator       | officecli-data-dashboard | CSV → Excel dashboards with KPI, charts, auto-scaling |
-| academic-paper          | officecli-academic-paper | Formal academic papers — TOC, equations, bibliography |
+| ID                      | Skill                     | Focus                                                 |
+| ----------------------- | ------------------------- | ----------------------------------------------------- |
+| word-creator            | officecli-docx            | Word documents — reports, proposals, letters          |
+| ppt-creator             | officecli-pptx            | General PPT creation, editing, analysis               |
+| excel-creator           | officecli-xlsx            | Excel — financial models, trackers, formulas          |
+| morph-ppt               | morph-ppt                 | Morph-animated presentations with visual styles       |
+| morph-ppt-3d            | morph-ppt-3d              | 3D GLB model → cinematic Morph presentation           |
+| word-form-creator       | officecli-word-form       | Fillable Word forms with content controls             |
+| pitch-deck-creator      | officecli-pitch-deck      | Investor decks, product launches, enterprise sales    |
+| dashboard-creator       | officecli-data-dashboard  | CSV → Excel dashboards with KPI, charts, auto-scaling |
+| academic-paper          | officecli-academic-paper  | Formal academic papers — TOC, equations, bibliography |
 | financial-model-creator | officecli-financial-model | DCF valuations, 3-statement models, cap tables        |
-| cowork                  | skill-creator + office   | Autonomous task execution with document processing    |
-| social-job-publisher    | x-recruiter + xiaohongshu | Social media job posting across platforms            |
-| beautiful-mermaid       | mermaid                  | Flowcharts, org charts, sequence & ER diagrams        |
+| cowork                  | skill-creator + office    | Autonomous task execution with document processing    |
+| social-job-publisher    | x-recruiter + xiaohongshu | Social media job posting across platforms             |
+| beautiful-mermaid       | mermaid                   | Flowcharts, org charts, sequence & ER diagrams        |
 
 Update this table when adding new assistants.

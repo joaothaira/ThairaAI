@@ -8,6 +8,7 @@ import {
   Cat,
   Communication,
   Computer,
+  Connect,
   Earth,
   Gemini,
   Info,
@@ -36,6 +37,12 @@ type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
 export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): NavItem[] {
   const builtinMap: Record<string, NavItem> = {
     gemini: { id: 'gemini', label: t('settings.gemini'), icon: <Gemini theme='outline' size='16' />, path: 'gemini' },
+    google: {
+      id: 'google',
+      label: t('settings.google.siderLabel', { defaultValue: 'Google' }),
+      icon: <Connect theme='outline' size='16' />,
+      path: 'google',
+    },
     model: { id: 'model', label: t('settings.model'), icon: <LinkCloud theme='outline' size='16' />, path: 'model' },
     assistants: {
       id: 'assistants',

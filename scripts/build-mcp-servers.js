@@ -39,6 +39,11 @@ async function main() {
     }),
     esbuild.build({
       ...SHARED_OPTIONS,
+      entryPoints: [path.join(ROOT, 'src/process/resources/builtinMcp/googleIntegrationServer.ts')],
+      outfile: path.join(ROOT, 'out/main/builtin-mcp-google-integration.js'),
+    }),
+    esbuild.build({
+      ...SHARED_OPTIONS,
       entryPoints: [path.join(ROOT, 'src/process/team/mcp/team/teamMcpStdio.ts')],
       outfile: path.join(ROOT, 'out/main/team-mcp-stdio.js'),
     }),

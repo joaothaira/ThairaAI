@@ -48,7 +48,7 @@ export const ASSISTANT_PRESETS: AssistantPreset[] = [
       'pt-BR': [
         'Crie um relatório trimestral Q1 2026 com sumário, tabela de destaques financeiros, gráfico de tendência de receita e seção de métricas KPI',
         'Escreva um artigo de pesquisa acadêmica sobre machine learning com equações LaTeX, citações, tabelas de dados e bibliografia',
-        'Crie um relatório de status do projeto com marca d\'água RASCUNHO, tabela de status colorida e cronograma Gantt em seção paisagem',
+        "Crie um relatório de status do projeto com marca d'água RASCUNHO, tabela de status colorida e cronograma Gantt em seção paisagem",
       ],
     },
   },
@@ -165,7 +165,7 @@ export const ASSISTANT_PRESETS: AssistantPreset[] = [
       'en-US':
         "Turn a GLB 3D model into a cinematic Morph presentation. The model is the visual hero — close-up for details, bird's eye for structure, low angle for drama, with smooth Morph transitions between every shot. Note: 3D models and Morph transitions require Microsoft PowerPoint to display correctly.",
       'pt-BR':
-        "Transforme um modelo 3D GLB em uma apresentação Morph cinematográfica. O modelo é o herói visual — close para detalhes, vista aérea para estrutura, ângulo baixo para drama, com transições Morph suaves entre cada cena. Nota: modelos 3D e transições Morph requerem Microsoft PowerPoint para exibição correta.",
+        'Transforme um modelo 3D GLB em uma apresentação Morph cinematográfica. O modelo é o herói visual — close para detalhes, vista aérea para estrutura, ângulo baixo para drama, com transições Morph suaves entre cada cena. Nota: modelos 3D e transições Morph requerem Microsoft PowerPoint para exibição correta.',
     },
     promptsI18n: {
       'en-US': [
@@ -302,7 +302,7 @@ export const ASSISTANT_PRESETS: AssistantPreset[] = [
         'Create an APA-style research paper on organizational culture with 3 data tables, endnotes, 15 references with hanging indent, and double spacing',
       ],
       'pt-BR': [
-        'Crie um white paper sobre infraestrutura de carregamento de veículos elétricos em áreas rurais com resumo executivo, tabelas de dados, notas de rodapé, marca d\'água CONFIDENCIAL e cabeçalhos profissionais',
+        "Crie um white paper sobre infraestrutura de carregamento de veículos elétricos em áreas rurais com resumo executivo, tabelas de dados, notas de rodapé, marca d'água CONFIDENCIAL e cabeçalhos profissionais",
         'Escreva um artigo de física sobre isoladores topológicos com equações em destaque, resumo multi-coluna, blocos de teoremas/definições e figuras em paisagem',
         'Crie um artigo de pesquisa no estilo APA sobre cultura organizacional com 3 tabelas de dados, notas de fim, 15 referências com recuo deslocado e espaçamento duplo',
       ],
