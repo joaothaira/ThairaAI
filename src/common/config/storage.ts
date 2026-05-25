@@ -185,6 +185,17 @@ export interface IConfigStorageRefer {
     customAgentId?: string;
     name?: string;
   };
+  // WhatsApp assistant default model
+  'assistant.whatsapp.defaultModel'?: {
+    id: string;
+    useModel: string;
+  };
+  // WhatsApp assistant agent selection
+  'assistant.whatsapp.agent'?: {
+    backend: string;
+    customAgentId?: string;
+    name?: string;
+  };
   // Skills Market: whether the aionui-skills builtin skill is enabled
   'skillsMarket.enabled'?: boolean;
   // Desktop Pet: whether the desktop pet feature is enabled

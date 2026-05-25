@@ -9,7 +9,7 @@
 /**
  * Built-in platform types for channel plugins.
  */
-export type BuiltinPluginType = 'telegram' | 'slack' | 'discord' | 'lark' | 'dingtalk' | 'weixin' | 'wecom';
+export type BuiltinPluginType = 'telegram' | 'slack' | 'discord' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' | 'whatsapp';
 
 /**
  * Supported platform types for plugins.
@@ -72,6 +72,7 @@ export function hasPluginCredentials(type: PluginType, credentials?: IPluginCred
     const hasWebsocket = !!(credentials.botId && credentials.secret);
     return hasWebhook || hasWebsocket;
   }
+  if (type === 'whatsapp') return !!(credentials.serverUrl || credentials.apiKey);
   // Extension or unknown plugins: check if any credential value is non-empty
   return Object.values(credentials).some((v) => v !== undefined && v !== null && v !== '');
 }
@@ -538,7 +539,7 @@ export function pairingRequestToRow(request: IChannelPairingRequest): IChannelPa
  * Channel platform type for model configuration.
  * Includes built-in platforms and extension-contributed platforms (string).
  */
-export type ChannelPlatform = 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' | (string & {});
+export type ChannelPlatform = 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' | 'whatsapp' | (string & {});
 
 /**
  * Type guard to check if a string is a known built-in ChannelPlatform.
@@ -546,8 +547,15 @@ export type ChannelPlatform = 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wec
  */
 export function isBuiltinChannelPlatform(
   value: string
-): value is 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' {
-  return value === 'telegram' || value === 'lark' || value === 'dingtalk' || value === 'weixin' || value === 'wecom';
+): value is 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' | 'whatsapp' {
+  return (
+    value === 'telegram' ||
+    value === 'lark' ||
+    value === 'dingtalk' ||
+    value === 'weixin' ||
+    value === 'wecom' ||
+    value === 'whatsapp'
+  );
 }
 
 /**
@@ -592,6 +600,7 @@ export function getChannelConversationName(
     dingtalk: 'ding',
     weixin: 'wx',
     wecom: 'wecom',
+    whatsapp: 'wa',
   };
   const parts: string[] = [shortPlatform[platform] ?? platform];
   if (type) parts.push(type);

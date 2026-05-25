@@ -719,9 +719,11 @@ export class ActionExecutor {
             replyMarkup: undefined,
           };
 
-          // 保存最后一条消息内容（不含 replyMarkup，最终消息会单独添加）
-          // Save last message content (without replyMarkup, final message adds it separately)
-          lastMessageContent = streamOutgoing;
+          // Track last answer content for finalization — skip status/tool/thinking events
+          // that arrive interleaved or after the text response.
+          if (message.type === 'text') {
+            lastMessageContent = streamOutgoing;
+          }
 
           // IMPORTANT: Always treat first streaming message as update to thinking message
           // This prevents async race condition where first insert's sendMessage takes time
@@ -828,7 +830,10 @@ export class ActionExecutor {
         // Use actual content of last message, add action buttons (based on platform)
         const responseMarkup = getResponseActionsMarkup(context.platform as PluginType, finalVisibleText);
         const finalReplyMarkup =
-          responseMarkup ?? (context.platform === 'wecom' ? ({ __aionuiFinal: true } as unknown) : undefined);
+          responseMarkup ??
+          (context.platform === 'wecom' || context.platform === 'whatsapp'
+            ? ({ __aionuiFinal: true } as unknown)
+            : undefined);
         const finalMessage: IUnifiedOutgoingMessage = lastMessageContent
           ? {
               ...lastMessageContent,
@@ -846,10 +851,10 @@ export class ActionExecutor {
               parseMode: 'HTML',
               replyMarkup: finalReplyMarkup,
             };
+        console.log(`[ActionExecutor] Final editMessage platform=${context.platform} hasReplyMarkup=${!!finalReplyMarkup} textLen=${finalMessage.text?.length ?? 0}`);
         await context.editMessage(lastMsgId, finalMessage);
-      } catch {
-        // 忽略最终编辑错误
-        // Ignore final edit error
+      } catch (editErr) {
+        console.error(`[ActionExecutor] Final editMessage failed (platform=${context.platform}):`, editErr);
       }
     } catch (error: any) {
       console.error(`[ActionExecutor] Chat processing failed:`, error);

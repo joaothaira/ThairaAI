@@ -16,6 +16,7 @@ import { LarkPlugin } from '../plugins/lark/LarkPlugin';
 import { TelegramPlugin } from '../plugins/telegram/TelegramPlugin';
 import { WeixinPlugin } from '../plugins/weixin/WeixinPlugin';
 import { WecomPlugin } from '../plugins/wecom/WecomPlugin';
+import { WhatsAppPlugin } from '../plugins/whatsapp/WhatsAppPlugin';
 import { isBuiltinChannelPlatform, resolveChannelConvType } from '../types';
 import type { ChannelPlatform, IChannelPluginConfig, PluginType } from '../types';
 import { SessionManager } from './SessionManager';
@@ -54,6 +55,7 @@ export class ChannelManager {
     registerPlugin('dingtalk', DingTalkPlugin);
     registerPlugin('weixin', WeixinPlugin);
     registerPlugin('wecom', WecomPlugin);
+    registerPlugin('whatsapp', WhatsAppPlugin);
   }
 
   /**
@@ -185,7 +187,7 @@ export class ChannelManager {
     }
 
     const enabledPlugins = result.data.filter((p) => p.enabled);
-    const builtinStartableTypes = new Set<PluginType>(['telegram', 'lark', 'dingtalk', 'weixin', 'wecom']);
+    const builtinStartableTypes = new Set<PluginType>(['telegram', 'lark', 'dingtalk', 'weixin', 'wecom', 'whatsapp']);
     const extensionRegistry = ExtensionRegistry.getInstance();
 
     for (const plugin of enabledPlugins) {
@@ -290,6 +292,16 @@ export class ChannelManager {
         credentials = { token: token.trim(), encodingAesKey: encodingAesKey.trim() };
         pluginRuntimeConfig = { ...pluginRuntimeConfig, mode: 'webhook' };
       }
+    } else if (pluginType === 'whatsapp') {
+      const serverUrl = (config.serverUrl as string | undefined)?.trim() || 'http://localhost:8084';
+      const instanceName = (config.instanceName as string | undefined)?.trim() || 'thairaai';
+      const apiKey = (config.apiKey as string | undefined)?.trim();
+      credentials = {
+        ...(credentials || {}),
+        serverUrl,
+        instanceName,
+        ...(apiKey ? { apiKey } : {}),
+      };
     } else {
       // Extension or unknown plugin type:
       // - prefer manifest-declared credential/config fields
@@ -469,6 +481,7 @@ export class ChannelManager {
     if (pluginId.startsWith('dingtalk')) return 'dingtalk';
     if (pluginId.startsWith('weixin')) return 'weixin';
     if (pluginId.startsWith('wecom')) return 'wecom';
+    if (pluginId.startsWith('whatsapp')) return 'whatsapp';
     // Extension plugins: use pluginId as type (e.g., 'ext-feishu')
     return pluginId;
   }
@@ -489,9 +502,8 @@ export class ChannelManager {
       // Registry may not be initialized, fall through
     }
     const type = this.getPluginTypeFromId(pluginId);
-    if (type === 'wecom') {
-      return 'WeCom';
-    }
+    if (type === 'wecom') return 'WeCom';
+    if (type === 'whatsapp') return 'WhatsApp';
     return type.charAt(0).toUpperCase() + type.slice(1) + ' Bot';
   }
 
@@ -543,7 +555,7 @@ export class ChannelManager {
       // For gemini + model info: update existing conversations' model field
       if (newType === 'gemini' && model?.id && model?.useModel) {
         if (isBuiltinChannelPlatform(platform)) {
-          const builtinPlatform: 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' = platform;
+          const builtinPlatform: 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' | 'whatsapp' = platform;
           const fullModel = await getChannelDefaultModel(builtinPlatform);
           const db = await getDatabase();
           const result = db.updateChannelConversationModel(builtinPlatform, 'gemini', fullModel);

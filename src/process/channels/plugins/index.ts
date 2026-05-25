@@ -20,3 +20,6 @@ export { WeixinPlugin } from './weixin/WeixinPlugin';
 
 // WeCom (Enterprise WeChat) plugin
 export { WecomPlugin } from './wecom/WecomPlugin';
+
+// WhatsApp plugin
+export { WhatsAppPlugin } from './whatsapp/WhatsAppPlugin';

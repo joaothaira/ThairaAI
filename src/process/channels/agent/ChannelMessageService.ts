@@ -5,7 +5,7 @@
  */
 
 import { workerTaskManager } from '@process/task/workerTaskManagerSingleton';
-import { getDatabase } from '@process/services/database';
+import { getDatabase, type AionUIDatabase } from '@process/services/database';
 import type BaseAgentManager from '@process/task/BaseAgentManager';
 import type { IAgentManager } from '@process/task/IAgentManager';
 import { composeMessage, transformMessage, type TMessage } from '@/common/chat/chatLib';
@@ -55,6 +55,29 @@ function isNonAnswerMessage(message: TMessage): boolean {
     message.type === 'plan' ||
     message.type === 'thinking'
   );
+}
+
+function loadChannelHistory(
+  db: AionUIDatabase,
+  conversationId: string,
+  limit = 30,
+): Array<{ role: 'user' | 'assistant'; text: string }> {
+  const result = db.getConversationMessages(conversationId, 0, limit, 'ASC');
+  return result.data
+    .filter((msg) => msg.type === 'text')
+    .map((msg) => ({
+      role: (msg.position === 'right' ? 'user' : 'assistant') as 'user' | 'assistant',
+      text: ((msg.content as Record<string, unknown>).content as string | undefined) ?? '',
+    }))
+    .filter((m) => m.text.length > 0 && !m.text.startsWith('⏳'));
+}
+
+function buildHistoryPrefix(
+  history: Array<{ role: 'user' | 'assistant'; text: string }>,
+  currentMessage: string,
+): string {
+  const lines = history.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`);
+  return `[Previous conversation:\n${lines.join('\n')}\n]\n\n${currentMessage}`;
 }
 
 /**
@@ -218,6 +241,7 @@ export class ChannelMessageService {
     // 获取任务
     // Get task
     let task: IAgentManager;
+    let effectiveMessage = message;
     try {
       // 检查会话来源，如果来自 Channel 则开启 yoloMode (自动同意)
       // Check conversation source, enable yoloMode if it's from a Channel
@@ -229,11 +253,28 @@ export class ChannelMessageService {
           dbResult.data?.source === 'telegram' ||
           dbResult.data?.source === 'dingtalk' ||
           dbResult.data?.source === 'weixin' ||
-          dbResult.data?.source === 'wecom');
+          dbResult.data?.source === 'wecom' ||
+          dbResult.data?.source === 'whatsapp');
+
+      // Detect fresh task (not in memory) before getOrBuildTask populates the cache.
+      // A fresh task means the in-process ACP session was lost (restart / idle timeout).
+      const isTaskFresh = !workerTaskManager.getTask(conversationId);
 
       task = await workerTaskManager.getOrBuildTask(conversationId, {
         yoloMode: isFromChannel,
       });
+
+      // Inject stored conversation history into the first message so the AI has context
+      // after a restart or idle timeout evicted the in-memory ACP session.
+      if (isTaskFresh && isFromChannel) {
+        const history = loadChannelHistory(db, conversationId);
+        if (history.length > 0) {
+          effectiveMessage = buildHistoryPrefix(history, message);
+          console.log(
+            `[ChannelMessageService] Injecting ${history.length} history turns into fresh task for conversation ${conversationId}`,
+          );
+        }
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Failed to get conversation task';
       console.error(`[ChannelMessageService] Failed to get task:`, errorMsg);
@@ -278,8 +319,8 @@ export class ChannelMessageService {
       // Gemini expects { input }; aionrs and all other agents expect { content }.
       const useInputPayload = task.type === 'gemini';
       const payload: { input?: string; content?: string; msg_id: string } = useInputPayload
-        ? { input: message, msg_id: msgId }
-        : { content: message, msg_id: msgId };
+        ? { input: effectiveMessage, msg_id: msgId }
+        : { content: effectiveMessage, msg_id: msgId };
 
       task.sendMessage(payload).catch((error: Error) => {
         const errorMessage = `Error: ${error.message || 'Failed to send message'}`;

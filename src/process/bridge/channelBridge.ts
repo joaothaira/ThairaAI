@@ -10,6 +10,8 @@ import { getPairingService } from '@process/channels/pairing/PairingService';
 import { ExtensionRegistry } from '@process/extensions';
 import { toAssetUrl } from '@process/extensions/protocol/assetProtocol';
 import * as path from 'path';
+import * as fs from 'fs';
+import { app } from 'electron';
 import type {
   IChannelPluginStatus,
   IChannelUser,
@@ -33,7 +35,7 @@ export function initChannelBridge(channelRepo: IChannelRepository): void {
    */
   channel.getPluginStatus.provider(async () => {
     try {
-      const BUILTIN_TYPES = new Set(['telegram', 'lark', 'dingtalk', 'slack', 'discord', 'weixin', 'wecom']);
+      const BUILTIN_TYPES = new Set(['telegram', 'lark', 'dingtalk', 'slack', 'discord', 'weixin', 'wecom', 'whatsapp']);
 
       let dbPlugins: import('@process/channels/types').IChannelPluginConfig[] = [];
       try {
@@ -339,6 +341,28 @@ export function initChannelBridge(channelRepo: IChannelRepository): void {
       console.error('[ChannelBridge] syncChannelSettings error:', error);
       return { success: false, msg: error.message };
     }
+  });
+
+  /**
+   * Auto-discover whatsapp-api Global API Key from adjacent .env file
+   */
+  channel.detectWhatsAppApiKey.provider(async () => {
+    const appRoot = app.getAppPath();
+    const candidates = [
+      path.join(appRoot, '..', 'whatsapp-api', '.env'),
+      path.join(appRoot, '..', 'codechat-api', '.env'),
+      path.join(process.cwd(), '..', 'whatsapp-api', '.env'),
+    ];
+    for (const p of candidates) {
+      try {
+        const content = fs.readFileSync(p, 'utf8');
+        const m = content.match(/^AUTHENTICATION_GLOBAL_AUTH_TOKEN=(.+)$/m);
+        if (m?.[1]) return { success: true, data: m[1].trim() };
+      } catch {
+        // not found
+      }
+    }
+    return { success: false };
   });
 
   console.log('[ChannelBridge] Initialized');

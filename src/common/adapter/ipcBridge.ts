@@ -1271,6 +1271,8 @@ export const channel = {
     }
   >('channel.sync-channel-settings'),
 
+  detectWhatsAppApiKey: bridge.buildProvider<IBridgeResponse<string>, void>('channel.detect-whatsapp-api-key'),
+
   // Events
   pairingRequested: bridge.buildEmitter<IChannelPairingRequest>('channel.pairing-requested'),
   pluginStatusChanged: bridge.buildEmitter<{ pluginId: string; status: IChannelPluginStatus }>(
