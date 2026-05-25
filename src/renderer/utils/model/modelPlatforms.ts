@@ -92,6 +92,7 @@ export const MODEL_PLATFORMS: PlatformConfig[] = [
 
   // 本地推理服务 / Local inference servers
   { name: 'Ollama', value: 'Ollama', logo: null, platform: 'custom', baseUrl: 'http://localhost:11434/v1' },
+  { name: '9router', value: '9router', logo: null, platform: 'custom', baseUrl: 'http://localhost:20128/v1' },
 
   // 预设供应商（按字母顺序排列）
   { name: 'OpenAI', value: 'OpenAI', logo: OpenAILogo, platform: 'custom', baseUrl: 'https://api.openai.com/v1' },

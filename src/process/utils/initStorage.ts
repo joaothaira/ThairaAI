@@ -16,6 +16,7 @@ import type {
   IConfigStorageRefer,
   IEnvStorageRefer,
   IMcpServer,
+  IProvider,
   TChatConversation,
   TProviderWithModel,
 } from '@/common/config/storage';
@@ -897,6 +898,20 @@ const cleanupOrphanedHealthCheckConversations = async () => {
   }
 };
 
+const DEFAULT_9ROUTER_PROVIDER_ID = 'builtin-9router';
+const NINER_ROUTER_PROVIDER_MIGRATION_KEY = 'migration.9routerProviderSeeded';
+
+const getDefault9RouterProvider = (): IProvider => ({
+  id: DEFAULT_9ROUTER_PROVIDER_ID,
+  platform: 'custom',
+  name: '9router',
+  baseUrl: 'http://localhost:20128/v1',
+  apiKey: '',
+  model: ['cc/claude-sonnet-4-6'],
+  enabled: true,
+  isGateway: true,
+});
+
 const initStorage = async () => {
   const t0 = performance.now();
   const mark = (label: string) => console.log(`[ThairaAI:init] ${label} +${Math.round(performance.now() - t0)}ms`);
@@ -953,6 +968,45 @@ const initStorage = async () => {
   // 4.2 Ensure built-in MCP servers exist and are up-to-date
   await ensureBuiltinMcpServers();
   mark('4.2 builtinMcpServers');
+
+  // 4.3 Seed 9router as default provider (once per install) + refresh model list on every startup
+  const ninerRouterSeeded = await configFile.get(NINER_ROUTER_PROVIDER_MIGRATION_KEY).catch(() => false);
+  if (!ninerRouterSeeded) {
+    try {
+      const existing: IProvider[] = await configFile.get('model.config').catch((): IProvider[] => []);
+      const alreadyPresent = existing.some((p) => p.id === DEFAULT_9ROUTER_PROVIDER_ID);
+      if (!alreadyPresent) {
+        await configFile.set('model.config', [getDefault9RouterProvider(), ...existing]);
+      }
+      await configFile.set(NINER_ROUTER_PROVIDER_MIGRATION_KEY, true);
+    } catch (error) {
+      console.error('[ThairaAI] Failed to seed 9router provider:', error);
+    }
+  }
+  // Refresh 9router model list from live /v1/models on every startup (non-blocking)
+  fetch('http://localhost:20128/v1/models', { signal: AbortSignal.timeout(4000) })
+    .then(async (res) => {
+      if (!res.ok) return;
+      const data = (await res.json()) as { data?: { id: string }[] };
+      const models = (data.data ?? []).map((m) => m.id).filter(Boolean);
+      if (models.length === 0) return;
+      const providers: IProvider[] = await configFile.get('model.config').catch((): IProvider[] => []);
+      const idx = providers.findIndex((p) => p.id === DEFAULT_9ROUTER_PROVIDER_ID);
+      if (idx === -1) return;
+      providers[idx] = { ...providers[idx], model: models, isGateway: true };
+      await configFile.set('model.config', providers);
+      console.log(`[ThairaAI] 9router: refreshed ${models.length} model(s)`);
+    })
+    .catch(async () => {
+      // 9router not running — clear stale model list so it is hidden from the selector
+      const providers: IProvider[] = await configFile.get('model.config').catch((): IProvider[] => []);
+      const idx = providers.findIndex((p) => p.id === DEFAULT_9ROUTER_PROVIDER_ID);
+      if (idx !== -1 && providers[idx].model.length > 0) {
+        providers[idx] = { ...providers[idx], model: [] };
+        await configFile.set('model.config', providers).catch(() => undefined);
+      }
+    });
+  mark('4.3 9router provider seed');
 
   // 5. 初始化内置助手（Assistants）
   try {

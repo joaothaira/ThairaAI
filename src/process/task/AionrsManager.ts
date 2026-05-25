@@ -16,11 +16,12 @@ import { ToolConfirmationOutcome } from '../agent/gemini/cli/tools/tools';
 import { AionrsAgent, type StdioMcpOption } from '@process/agent/aionrs';
 import type { AionrsCapabilities } from '@process/agent/aionrs/protocol';
 import { getDatabase } from '@process/services/database';
+import { ProcessConfig } from '@process/utils/initStorage';
 import { addMessage, addOrUpdateMessage } from '@process/utils/message';
 import { uuid } from '@/common/utils';
 import BaseAgentManager from './BaseAgentManager';
 import { IpcAgentEventEmitter } from './IpcAgentEventEmitter';
-import { mainError, mainLog, mainWarn } from '@process/utils/mainLogger';
+import { mainError, mainLog } from '@process/utils/mainLogger';
 import { hasCronCommands } from './CronCommandDetector';
 import { processCronInMessage } from './MessageMiddleware';
 import { extractAndStripThinkTags } from './ThinkTagDetector';
@@ -81,6 +82,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
   readonly approvalStore = new AionrsApprovalStore();
   private agent: AionrsAgent | null = null;
   private agentReady: Promise<void>;
+  private agentStartError: Error | null = null;
   private currentMode: string = 'default';
   private _capabilities: AionrsCapabilities | null = null;
   private _configSentAt: number | null = null;
@@ -125,7 +127,12 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     this.init();
 
     // Start the agent bootstrap — store promise so sendMessage can await it
-    this.agentReady = this.start().catch(() => {});
+    this.agentReady = this.start().catch((error: unknown) => {
+      const normalized = error instanceof Error ? error : new Error(String(error));
+      this.agentStartError = normalized;
+      mainError('[AionrsManager]', `failed to start aionrs: ${normalized.message}`);
+      throw normalized;
+    });
   }
 
   /**
@@ -228,14 +235,14 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
   }
 
   async sendMessage(data: { content: string; msg_id: string; files?: string[] }) {
-    const message: TMessage = {
+    const userMessage: TMessage = {
       id: data.msg_id,
       type: 'text',
       position: 'right',
       conversation_id: this.conversation_id,
       content: { content: data.content },
     };
-    addMessage(this.conversation_id, message);
+    addMessage(this.conversation_id, userMessage);
     try {
       (await getDatabase()).updateConversation(this.conversation_id, {});
     } catch {
@@ -244,14 +251,49 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     cronBusyGuard.setProcessing(this.conversation_id, true);
     this.status = 'pending';
     this._lastActivityAt = Date.now();
-    // Wait for agent bootstrap to complete before sending
-    await this.agentReady;
+    // Wait for agent bootstrap to complete before sending. Startup errors must
+    // fail the turn immediately; otherwise the first-event watchdog reports a
+    // misleading 120s model timeout even though no request was sent.
+    try {
+      await this.agentReady;
+    } catch (error) {
+      const startErrorMessage = error instanceof Error ? error.message : String(error);
+      this.failStartupTurn(data.msg_id, startErrorMessage);
+      return;
+    }
+    if (!this.agent) {
+      const startErrorMessage = this.agentStartError?.message || 'aionrs agent did not initialize';
+      this.failStartupTurn(data.msg_id, startErrorMessage);
+      return;
+    }
     this._messageSentAt = Date.now();
     mainLog('[AionrsManager]', `message sent: msg_id=${data.msg_id}`);
     this.startFirstEventTimer(data.msg_id);
-    if (this.agent) {
-      await this.agent.send(data.content, data.msg_id, data.files);
-    }
+    await this.agent.send(data.content, data.msg_id, data.files);
+  }
+
+  private failStartupTurn(msgId: string, reason: string): void {
+    this.status = 'finished';
+    cronBusyGuard.setProcessing(this.conversation_id, false);
+
+    const errorMessage: IResponseMessage = {
+      type: 'error',
+      conversation_id: this.conversation_id,
+      msg_id: msgId,
+      data: `Failed to start Thaira CLI agent: ${reason}`,
+    };
+    ipcBridge.conversation.responseStream.emit(errorMessage);
+    this.emitToEventBuses(errorMessage);
+
+    const finishMessage: IResponseMessage = {
+      type: 'finish',
+      conversation_id: this.conversation_id,
+      msg_id: uuid(),
+      data: null,
+    };
+    ipcBridge.conversation.responseStream.emit(finishMessage);
+    this.emitToEventBuses(finishMessage);
+    void this.handleTurnEnd();
   }
 
   /**
@@ -543,6 +585,34 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     this.heartbeatMissedCount = 0;
   }
 
+  private maybeMarkGatewayCooldown(data: unknown): void {
+    if (!this.model.isGateway) return;
+
+    const message = typeof data === 'string' ? data : data instanceof Error ? data.message : JSON.stringify(data);
+    if (!/rate limit|rate limited|429/i.test(message)) return;
+
+    const retryMatch = message.match(/retry after\s+(\d+)\s*ms/i);
+    const retryAfterMs = retryMatch ? Number(retryMatch[1]) : 30_000;
+    const cooldownMs = Number.isFinite(retryAfterMs) ? Math.max(retryAfterMs, 5_000) : 30_000;
+    const cooldownUntil = Date.now() + cooldownMs;
+
+    void (async () => {
+      try {
+        const current = (await ProcessConfig.get('model.gatewayCooldownUntil').catch((): undefined => undefined)) ?? {};
+        await ProcessConfig.set('model.gatewayCooldownUntil', {
+          ...current,
+          [this.model.id]: cooldownUntil,
+        });
+        mainLog('[AionrsManager]', `gateway cooldown set: ${this.model.name} ${cooldownMs}ms`);
+      } catch (error) {
+        mainError(
+          '[AionrsManager]',
+          `failed to persist gateway cooldown: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    })();
+  }
+
   private checkHeartbeat(): void {
     if (!this.heartbeatActive || !this.agent?.isAlive) return;
 
@@ -672,6 +742,11 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
         this.heartbeatMissedCount = 0;
         this.saveContextUsage(processedData.data);
         void this.handleTurnEnd();
+      }
+
+      if (processedData.type === 'error') {
+        this.clearFirstEventTimer();
+        this.maybeMarkGatewayCooldown(processedData.data);
       }
 
       processedData.conversation_id = this.conversation_id;

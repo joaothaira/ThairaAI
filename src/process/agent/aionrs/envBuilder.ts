@@ -57,6 +57,21 @@ function stripTrailingV1(url: string): string {
   return url.replace(/\/v1\/?$/, '');
 }
 
+function isLocalBaseUrl(baseUrl: string): boolean {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
+function resolveApiKeyForAionrs(model: TProviderWithModel, baseUrl: string): string {
+  if (model.apiKey) return model.apiKey;
+  if (model.isGateway || isLocalBaseUrl(baseUrl)) return 'local';
+  return '';
+}
+
 /**
  * Build CLI args and env vars for spawning aionrs.
  */
@@ -108,14 +123,15 @@ export function buildSpawnConfig(
       break;
 
     case 'openai': {
-      if (model.apiKey) env.OPENAI_API_KEY = model.apiKey;
       const baseUrl = resolveOpenAIBaseUrl(model);
+      const apiKey = resolveApiKeyForAionrs(model, baseUrl);
+      if (apiKey) env.OPENAI_API_KEY = apiKey;
       if (baseUrl) args.push('--base-url', stripTrailingV1(baseUrl));
       break;
     }
 
     case 'bedrock': {
-      const bc = (model as TProviderWithModel & { bedrockConfig?: any }).bedrockConfig;
+      const bc = model.bedrockConfig;
       if (bc) {
         if (bc.region) env.AWS_REGION = bc.region;
         if (bc.authMethod === 'accessKey') {

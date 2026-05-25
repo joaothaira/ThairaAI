@@ -96,6 +96,8 @@ export interface IConfigStorageRefer {
     preferredMode?: string;
   };
   'aionrs.defaultModel'?: { id: string; useModel: string };
+  /** Temporary per-provider cooldowns after gateway/provider rate-limit errors. */
+  'model.gatewayCooldownUntil'?: Record<string, number>;
   'tools.imageGenerationModel': TProviderWithModel & {
     /** @deprecated Image generation is now controlled via built-in MCP server toggle */
     switch?: boolean;
@@ -120,6 +122,8 @@ export interface IConfigStorageRefer {
   'migration.assistantsSplitCustom'?: boolean;
   /** Migration flag: Electron desktop config has been imported to server config */
   'migration.electronConfigImported'?: boolean;
+  /** Migration flag: 9router seeded as default provider */
+  'migration.9routerProviderSeeded'?: boolean;
   // 关闭窗口时最小化到系统托盘 / Minimize to system tray when closing window
   'system.closeToTray'?: boolean;
   // 任务完成时显示系统通知 / Show system notification when task completes
@@ -576,6 +580,8 @@ export interface IProvider {
       error?: string; // 错误信息 / error message
     }
   >;
+  /** Marks a provider as a transparent LLM gateway (e.g. 9router). Hidden from provider settings UI, not user-configurable. */
+  isGateway?: boolean;
 }
 
 export type TProviderWithModel = Omit<IProvider, 'model'> & {

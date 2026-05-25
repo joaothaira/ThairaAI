@@ -1,7 +1,7 @@
 import { ipcBridge } from '@/common';
 import { GOOGLE_AUTH_PROVIDER_ID } from '@/common/config/constants';
 import type { IProvider } from '@/common/config/storage';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { useGeminiGoogleAuthModels } from './useGeminiGoogleAuthModels';
 import type { GeminiModeOption } from './useModeModeList';
@@ -14,12 +14,15 @@ export interface ModelProviderListResult {
   formatModelLabel: (provider: { platform?: string } | undefined, modelName?: string) => string;
 }
 
+type GatewayModelState = Record<string, string[] | null>;
+
 /**
  * Shared hook that builds the provider list (including Google Auth)
  * and exposes helpers consumed by both conversation and channel settings.
  */
 export const useModelProviderList = (): ModelProviderListResult => {
   const { geminiModeOptions, isGoogleAuth } = useGeminiGoogleAuthModels();
+  const [gatewayModels, setGatewayModels] = useState<GatewayModelState>({});
 
   const geminiModeLookup = useMemo(() => {
     const lookup = new Map<string, GeminiModeOption>();
@@ -28,6 +31,51 @@ export const useModelProviderList = (): ModelProviderListResult => {
   }, [geminiModeOptions]);
 
   const { data: modelConfig } = useSWR('model.config.shared', () => ipcBridge.mode.getModelConfig.invoke());
+
+  const gatewaySignature = useMemo(() => {
+    if (!Array.isArray(modelConfig)) return '';
+    return modelConfig
+      .filter((provider) => provider.isGateway && provider.baseUrl)
+      .map((provider) => `${provider.id}:${provider.baseUrl}`)
+      .join('|');
+  }, [modelConfig]);
+
+  useEffect(() => {
+    if (!Array.isArray(modelConfig)) return;
+
+    const gatewayProviders = modelConfig.filter((provider) => provider.isGateway && provider.baseUrl);
+    if (gatewayProviders.length === 0) {
+      setGatewayModels({});
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all(
+      gatewayProviders.map(async (provider) => {
+        try {
+          const origin = provider.baseUrl.replace(/\/v1\/?$/, '');
+          const res = await fetch(`${origin}/v1/models`, { signal: AbortSignal.timeout(2000) });
+          if (!res.ok) return [provider.id, null] as const;
+          const data = (await res.json()) as { data?: { id?: string }[] };
+          const models = (data.data ?? []).map((item) => item.id).filter((id): id is string => Boolean(id));
+          return [provider.id, models.length > 0 ? models : null] as const;
+        } catch {
+          return [provider.id, null] as const;
+        }
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      const next: GatewayModelState = {};
+      for (const [id, models] of entries) {
+        next[id] = models;
+      }
+      setGatewayModels(next);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gatewaySignature, modelConfig]);
 
   // Mutable cache for available-model filtering
   const availableModelsCacheRef = useRef(new Map<string, string[]>());
@@ -65,6 +113,12 @@ export const useModelProviderList = (): ModelProviderListResult => {
     let list: IProvider[] = Array.isArray(modelConfig) ? modelConfig : [];
     // 过滤掉被禁用的 provider（默认为启用）
     list = list.filter((p) => p.enabled !== false);
+    list = list.flatMap((provider) => {
+      if (!provider.isGateway) return [provider];
+      const liveGatewayModels = gatewayModels[provider.id];
+      if (!liveGatewayModels) return [];
+      return [{ ...provider, model: liveGatewayModels }];
+    });
 
     if (isGoogleAuth) {
       const googleProvider: IProvider = {
@@ -81,7 +135,7 @@ export const useModelProviderList = (): ModelProviderListResult => {
     }
     // 过滤掉没有可用模型的 provider
     return list.filter((p) => getAvailableModels(p).length > 0);
-  }, [geminiModeOptions, getAvailableModels, isGoogleAuth, modelConfig]);
+  }, [gatewayModels, geminiModeOptions, getAvailableModels, isGoogleAuth, modelConfig]);
 
   const formatModelLabel = useCallback(
     (provider: { platform?: string } | undefined, modelName?: string) => {
