@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Check staged files for sensitive patterns before committing
+
+STAGED=$(git diff --cached --name-only)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+DIFF=$(git diff --cached -U0 | grep '^+' | grep -v '^+++')
+FOUND=0
+
+check() {
+  local pattern="$1"
+  local match
+  match=$(echo "$DIFF" | grep -E "$pattern" 2>/dev/null)
+  if [ -n "$match" ]; then
+    echo "Sensitive data detected — pattern: $pattern"
+    echo "$match"
+    FOUND=1
+  fi
+}
+
+check 'GOCSPX-[A-Za-z0-9_-]+'
+check '[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com'
+check 'AIza[0-9A-Za-z_-]{35}'
+check 'sk-[A-Za-z0-9]{20,}'
+check 'sk-ant-[A-Za-z0-9_-]+'
+check 'xoxb-[0-9A-Za-z-]+'
+check 'ghp_[A-Za-z0-9]{36}'
+check 'gho_[A-Za-z0-9]{36}'
+check 'AKIA[0-9A-Z]{16}'
+check '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
+
+if [ "$FOUND" -eq 1 ]; then
+  echo ""
+  echo "Commit blocked. Remove the sensitive values before committing."
+  echo "If this is a false positive, use: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
