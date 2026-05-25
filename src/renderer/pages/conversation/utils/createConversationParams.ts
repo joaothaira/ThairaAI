@@ -6,7 +6,7 @@
 
 import { ConfigStorage } from '@/common/config/storage';
 import type { ICreateConversationParams } from '@/common/adapter/ipcBridge';
-import type { TProviderWithModel } from '@/common/config/storage';
+import type { IProvider, TProviderWithModel } from '@/common/config/storage';
 import type { AcpBackend } from '@/common/types/acpTypes';
 import { DEFAULT_CODEX_MODELS } from '@/common/types/codex/codexModels';
 import { resolveLocaleKey } from '@/common/utils';
@@ -85,36 +85,70 @@ async function resolvePreferredAcpModelId(backend: string): Promise<string | und
  * aionrs supports all platforms via OpenAI-compatible protocol.
  * Throws if no compatible provider is configured.
  */
+/**
+ * Checks if the gateway is reachable AND returns its live model list.
+ * Returns null when the gateway is down.
+ */
+async function fetchGatewayModels(baseUrl: string): Promise<string[] | null> {
+  try {
+    const origin = baseUrl.replace(/\/v1\/?$/, '');
+    const res = await fetch(`${origin}/v1/models`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { data?: { id: string }[] };
+    const models = (data.data ?? []).map((m) => m.id).filter(Boolean);
+    return models.length > 0 ? models : null;
+  } catch {
+    return null;
+  }
+}
+
+function providerWithModel(provider: IProvider, useModel: string): TProviderWithModel {
+  return {
+    ...provider,
+    useModel,
+  };
+}
+
 export async function getDefaultAionrsModel(): Promise<TProviderWithModel> {
   const providers = await ConfigStorage.get('model.config');
+  const gatewayCooldownUntil =
+    (await ConfigStorage.get('model.gatewayCooldownUntil').catch((): undefined => undefined)) ?? {};
+  const now = Date.now();
 
   if (!providers || providers.length === 0) {
     throw new Error('No model provider configured');
   }
 
-  // aionrs supports all platforms via OpenAI-compatible protocol
-  const provider = providers.find((p) => p.enabled !== false);
-  if (!provider) {
-    throw new Error('No enabled model provider for Thaira CLI');
+  // Iterate in order: gateway providers (9router etc.) are checked for liveness first,
+  // falling back to standard providers when the gateway is not running.
+  for (const provider of providers) {
+    if (provider.enabled === false) continue;
+
+    if (provider.isGateway) {
+      if ((gatewayCooldownUntil[provider.id] ?? 0) > now) continue;
+
+      // Provider order is intentional: 9router gets first chance, then local fallbacks.
+      // eslint-disable-next-line no-await-in-loop
+      const liveModels = await fetchGatewayModels(provider.baseUrl);
+      if (!liveModels) continue; // gateway down
+
+      // Sync persisted model list with live models so the selected model is always valid
+      const enabledModel =
+        provider.model.find((m) => provider.modelEnabled?.[m] !== false && liveModels.includes(m)) ??
+        liveModels.find((m) => provider.modelEnabled?.[m] !== false) ??
+        liveModels[0];
+
+      if (!enabledModel) continue;
+      return providerWithModel(provider, enabledModel);
+    }
+
+    const enabledModel = provider.model.find((m) => provider.modelEnabled?.[m] !== false);
+    const useModel = enabledModel || provider.model[0];
+    if (!useModel) continue;
+    return providerWithModel(provider, useModel);
   }
 
-  const enabledModel = provider.model.find((m) => provider.modelEnabled?.[m] !== false);
-
-  return {
-    id: provider.id,
-    platform: provider.platform,
-    name: provider.name,
-    baseUrl: provider.baseUrl,
-    apiKey: provider.apiKey,
-    useModel: enabledModel || provider.model[0],
-    capabilities: provider.capabilities,
-    contextLimit: provider.contextLimit,
-    modelProtocols: provider.modelProtocols,
-    bedrockConfig: provider.bedrockConfig,
-    enabled: provider.enabled,
-    modelEnabled: provider.modelEnabled,
-    modelHealth: provider.modelHealth,
-  };
+  throw new Error('No enabled model provider for Thaira CLI');
 }
 
 /**
@@ -159,7 +193,7 @@ export async function getDefaultGeminiModel(): Promise<TProviderWithModel> {
 async function resolveGeminiModel(): Promise<TProviderWithModel> {
   try {
     return await getDefaultGeminiModel();
-  } catch (e) {
+  } catch {
     // Fallback to placeholder if no model configured (supports Google Auth users)
     return {
       id: 'gemini-placeholder',
